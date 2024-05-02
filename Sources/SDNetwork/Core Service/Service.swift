@@ -27,32 +27,52 @@ public final class Service: ServiceProtocol {
     }
     
     public func request<T: Decodable>(with endpoint: HTTPEndpoint, completion: @escaping (Result<T, NetworkError>) -> Void) {
-//        guard let urlRequest = try? createURLRequest(with: endpoint) else {
-//            return
-//        }
         do {
             let urlRequest = try createURLRequest(with: endpoint)
             performRequest(with: urlRequest, completion: completion)
         } catch let error as NetworkError {
+            #if DEBUG
+                print(error)
+            #endif
             completion(.failure(error))
         } catch let error {
+            #if DEBUG
+                print(error)
+            #endif
             completion(.failure(.underlying(error)))
+        }
+    }
+    
+    public func request<T: Decodable>(with endpoint: HTTPEndpoint) async throws -> T {
+        return try await withCheckedThrowingContinuation { continuation in
+            request(with: endpoint) { result in
+                return continuation.resume(with: result)
+            }
         }
     }
     
     private func performRequest<T: Decodable>(with request: URLRequest, completion: @escaping (Result<T, NetworkError>) -> Void) {
         urlSession.dataTask(with: request) { data, response, error in
             if let error {
+                #if DEBUG
+                    print(error)
+                #endif
                 completion(.failure(.underlying(error)))
                 return
             }
             
             guard let httpResponse = response as? HTTPURLResponse else {
+                #if DEBUG
+                    print(NetworkError.invalidServerResponse.errorDescription)
+                #endif
                 completion(.failure(.invalidServerResponse))
                 return
             }
             
             guard let data = data else {
+                #if DEBUG
+                    print(NetworkError.missingData)
+                #endif
                 completion(.failure(.missingData))
                 return
             }
@@ -63,9 +83,15 @@ public final class Service: ServiceProtocol {
                     let decodedData = try self.decoder.decode(T.self, from: data)
                     completion(.success(decodedData))
                 } catch let error {
+                    #if DEBUG
+                        print(error)
+                    #endif
                     completion(.failure(.decodingError(error)))
                 }
             default:
+                #if DEBUG
+                    print(NetworkError.invalidServerResponseWithStatusCode(statusCode: httpResponse.statusCode))
+                #endif
                 completion(.failure(.invalidServerResponseWithStatusCode(statusCode: httpResponse.statusCode)))
             }
         }.resume()
@@ -91,8 +117,8 @@ public final class Service: ServiceProtocol {
         urlRequest.httpMethod = endpoint.method.rawValue
         urlRequest.httpBody = endpoint.httpBody
         
-        for (value, key) in endpoint.headers {
-            urlRequest.setValue(value, forHTTPHeaderField: key)
+        for (value, field) in endpoint.headers {
+            urlRequest.setValue(value, forHTTPHeaderField: field)
         }
         
         return urlRequest

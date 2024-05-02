@@ -7,7 +7,7 @@
 
 import Foundation
 
-public enum NetworkError: Error {
+public enum NetworkError: LocalizedError {
     case wrongURLFormat
     case invalidServerResponseWithStatusCode(statusCode: Int)
     case invalidServerResponse
@@ -33,7 +33,7 @@ public extension NetworkError {
         case .connectionError(let error):
             return "Network connection seems to be offline: \(error.localizedDescription)"
         case .underlying(let error):
-            return error.localizedDescription
+            return "Failed with underlying error: \(error.localizedDescription)"
         }
     }
 }
