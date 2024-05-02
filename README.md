@@ -6,7 +6,7 @@ It simplifies common networking tasks and handles basic error scenarios.
 - [HTTPMethod Enum](#httpmethod-enum)
 - [HTTPEndpoint Protocol](#httpendpoint-protocol)
 - [NetworkError Enum](#networkerror-enum)
-- [Example Usage](#example-usage)
+- [How to use?](#how-to-use)
 
 ### HTTPMethod Enum
 ```swift
@@ -35,7 +35,7 @@ The HTTPEndpoint protocol outlines the structure of an HTTP endpoint, allowing c
 
 ### NetworkError Enum
 ```swift
-public enum NetworkError: Error {
+public enum NetworkError: LocalizedError {
     case wrongURLFormat
     case invalidServerResponseWithStatusCode(statusCode: Int)
     case invalidServerResponse
@@ -61,15 +61,23 @@ public extension NetworkError {
         case .connectionError(let error):
             return "Network connection seems to be offline: \(error.localizedDescription)"
         case .underlying(let error):
-            return error.localizedDescription
+            return "Failed with underlying error: \(error.localizedDescription)"
         }
     }
 }
 ```
 The NetworkError enum enumerates common networking errors and provides descriptive error messages.
 
-### Example Usage
+### <a id="how-to-use"></a> How to use?
+- #### Add SDNetwork to your project via SPM
 ```swift
+https://github.com/sameddagl/SDNetwork
+```
+
+- #### Create an enpoint according to your api.
+```swift
+import SDNetwork
+
 // Creating a custom endpoint
 enum CustomEndpoint: HTTPEndpoint {
     case customPath(parameter: String)
@@ -108,8 +116,12 @@ enum CustomEndpoint: HTTPEndpoint {
         return nil
     }
 }
+```
 
-// Creating a middle layer class
+- #### Create a middle class for the endpoint.
+```swift
+import SDNetwork
+
 class CustomService {
     private let service: ServiceProtocol
 
@@ -117,13 +129,24 @@ class CustomService {
         self.service = service
     }
 
+    // Using Completion Block
     func requestCustomPath(parameter: String, completion: @escaping (Result<YourResponseType, NetworkError>) -> Void) {
         let endpoint = CustomEndpoint.customPath(parameter: parameter)
         service.request(with: endpoint, completion: completion)
     }
-}
 
-// Example usage
+    // Using Async-Await
+    func requestCustomPathUsingAsyncAwait(parameter: String) async throws -> YourResponseType {
+        let endpoint = CustomEndpoint.customPath(parameter: parameter)
+        return try await service.request(with: endpoint)
+    }
+}
+```
+
+- #### Use mid class to make a request.
+```swift
+import SDNetwork
+
 let customService = CustomService(service: Service())
 customService.requestCustomPath(parameter: "example") { result in
     switch result {
